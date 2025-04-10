@@ -1,0 +1,328 @@
+
+from kivymd.app import MDApp
+from kivymd.uix.screen import MDScreen
+from kivymd.uix.screenmanager import MDScreenManager
+from kivymd.uix.label import MDLabel
+from kivymd.uix.floatlayout import MDFloatLayout
+from kivymd.uix.fitimage import FitImage
+from kivymd.uix.button import MDRaisedButton
+from kivymd.uix.textfield import MDTextField
+from kivymd.uix.dialog import MDDialog
+from kivymd.uix.button import MDFlatButton
+from kivymd.uix.boxlayout import MDBoxLayout
+from kivy.lang import Builder
+from kivy.clock import Clock
+from kivy.core.text import LabelBase
+
+# تسجيل الخط العربي
+LabelBase.register(name="Amiri", fn_regular="amiri.ttf")
+
+# دوال الاستيفاء الأربعة
+
+def linear_interpolation(x_vals, y_vals, x):
+    explanation = "الاستكمال الخطي:\n"
+    for i in range(len(x_vals) - 1):
+        if x_vals[i] <= x <= x_vals[i+1]:
+            x0, x1 = x_vals[i], x_vals[i+1]
+            y0, y1 = y_vals[i], y_vals[i+1]
+            explanation += f"اخترنا النقطتين الأقرب لـ x = {x}:\n"
+            explanation += f"(x0, y0) = ({x0}, {y0})\n"
+            explanation += f"(x1, y1) = ({x1}, {y1})\n"
+            slope = (y1 - y0) / (x1 - x0)
+            explanation += f"الميل = (y1 - y0) / (x1 - x0) = {slope}\n"
+            y = y0 + slope * (x - x0)
+            explanation += f"y = y0 + الميل * (x - x0) = {y}\n"
+            return y, ""
+    return None, "x خارج مدى النقاط المدخلة للاستكمال الخطي"
+
+def lagrange_interpolation(x_vals, y_vals, x):
+    explanation = "الاستكمال بطريقة لاجرانج:\n"
+    n = len(x_vals)
+    total = 0
+    for i in range(n):
+        term = y_vals[i]
+        explanation += f"\nL_{i}(x):\n"
+        for j in range(n):
+            if j != i:
+                explanation += f" * (x - {x_vals[j]}) / ({x_vals[i]} - {x_vals[j]})"
+                term *= (x - x_vals[j]) / (x_vals[i] - x_vals[j])
+        explanation += f"\nمساهمة الحد {i}: {term}\n"
+        total += term
+    explanation += f"\nالنتيجة التقريبية: y = {total}"
+    return total, ""
+
+def newton_interpolation(x_vals, y_vals, x):
+    explanation = "الاستكمال بطريقة نيوتن:\n"
+    n = len(x_vals)
+    diff = [[0]*n for _ in range(n)]
+    for i in range(n):
+        diff[i][0] = y_vals[i]
+    for j in range(1, n):
+        for i in range(n-j):
+            diff[i][j] = (diff[i+1][j-1] - diff[i][j-1]) / (x_vals[i+j] - x_vals[i])
+    explanation += "جدول الفروقات:\n"
+    for row in diff:
+        explanation += str(row[:n]) + "\n"
+    result = diff[0][0]
+    term = 1
+    for i in range(1, n):
+        term *= (x - x_vals[i-1])
+        result += term * diff[0][i]
+    explanation += f"\nالنتيجة التقريبية: y = {result}"
+    return result, ""
+
+def quadratic_interpolation(x_vals, y_vals, x):
+    explanation = "الاستكمال التربيعي:\n"
+    if len(x_vals) < 3:
+        return None, "مطلوب 3 نقاط على الأقل للاستكمال التربيعي"
+    x0, x1, x2 = x_vals[:3]
+    y0, y1, y2 = y_vals[:3]
+    explanation += f"باستخدام النقاط: ({x0},{y0}), ({x1},{y1}), ({x2},{y2})\n"
+    L0 = ((x - x1)*(x - x2)) / ((x0 - x1)*(x0 - x2))
+    L1 = ((x - x0)*(x - x2)) / ((x1 - x0)*(x1 - x2))
+    L2 = ((x - x0)*(x - x1)) / ((x2 - x0)*(x2 - x1))
+    explanation += f"L0 = {L0}, L1 = {L1}, L2 = {L2}\n"
+    y = y0*L0 + y1*L1 + y2*L2
+    explanation += f"\nالنتيجة التقريبية: y = {y}"
+    return y, ""
+
+KV = """
+MDScreenManager:
+    WelcomeScreen:
+    MainScreen:
+    InterpolationScreen:
+
+
+<WelcomeScreen>:
+    name: "welcome"
+    MDFloatLayout:
+        FitImage:
+            source: "awawa.png"
+            size_hint: 1, 1
+            pos_hint: {"center_x": 0.5, "center_y": 0.5}
+
+        MDCard:
+            size_hint: 0.3, None
+            height: self.minimum_height
+            pos_hint: {"center_x": 0.5, "center_y": 0.8}
+            padding: 18
+            md_bg_color: 1, 1, 1, 0.7
+            radius: [20]
+            MDLabel:
+                text: "ﺓﺮﻜﻓ ﻖﻴﺒﻄﺗ ﻲﻓ ﻢﻜﺑ ﺎﺒﺣﺮﻣ"
+                font_name: "Amiri"
+                halign: "center"
+                theme_text_color: "Custom"
+                text_color: 0, 0, 0, 1
+                font_size: "22sp"
+
+        MDCard:
+            size_hint: 0.5, None
+            height: self.minimum_height
+            pos_hint: {"center_x": 0.5, "center_y": 0.65}
+            padding: 26
+            md_bg_color: 1, 1, 1, 0.7
+            radius: [22]
+            MDLabel:
+                text: "ﺔــــﻣﻮﺣﺭﺍ ﺔﻤﻃﺎﻓ :ﺓﺫﺎﺘﺳﻻﺍ ﻑﺍﺮﺷﺍ"
+                font_name: "Amiri"
+                halign: "center"
+                theme_text_color: "Custom"
+                text_color: 0, 0, 0, 1
+                font_size: "22sp"
+
+        MDCard:
+            size_hint: 0.3, None
+            height: self.minimum_height
+            pos_hint: {"center_x": 0.5, "center_y": 0.55}
+            padding: 18
+            md_bg_color: 1, 1, 1, 0.7
+            radius: [20]
+            MDLabel:
+                text: ":ﺕﺎﺒﻟﺎﻄﻟﺍ ﺩﺍﺪﻋﺇ"
+                font_name: "Amiri"
+                halign: "center"
+                theme_text_color: "Custom"
+                text_color: 0, 0, 0, 1
+                font_size: "22sp"
+
+        MDCard:
+            size_hint: 0.3, None
+            height: self.minimum_height
+            pos_hint: {"center_x": 0.5, "center_y": 0.47}
+            padding: 18
+            md_bg_color: 1, 1, 1, 0.7
+            radius: [20]
+            MDLabel:
+                text: " ﻲﺳﺮﻟﺍ ﺡﺎﻣﺮﻟﺍ ﺀﺎﻓﻭ "
+                font_name: "Amiri"
+                halign: "center"
+                theme_text_color: "Custom"
+                text_color: 0, 0, 0, 1
+                font_size: "22sp"
+
+        MDCard:
+            size_hint: 0.3, None
+            height: self.minimum_height
+            pos_hint: {"center_x": 0.5, "center_y": 0.39}
+            padding: 18
+            md_bg_color: 1, 1, 1, 0.7
+            radius: [20]
+            MDLabel:
+                text: "ﻲﺸﻴﺣﻮﻟﺍ ﺡﺎﺘﻔﻣ ﺔﺒﻫ  "
+                font_name: "Amiri"
+                halign: "center"
+                theme_text_color: "Custom"
+                text_color: 0, 0, 0, 1
+                font_size: "22sp"
+
+<MainScreen>:
+    name: "main"
+    MDFloatLayout:
+        MDLabel:
+            text: "W&H "
+            font_name: "Amiri"
+            halign: "center"
+            pos_hint: {"center_y": 0.6}
+            font_size: "50sp"
+        MDRaisedButton:
+            text: "ﻝﺎﺜﻤﻟﺍ ﻰﻟﺍ ﻝﺎﻘﺘﻧﻼﻟ ﻂﻐﺿﺍ "
+            pos_hint: {"center_x": 0.5, "center_y": 0.4}
+            font_name: "Amiri"
+            on_release: app.root.current = "interpolation"
+            font_size: "30sp"
+
+
+<InterpolationScreen>:
+    name: "interpolation"
+    MDFloatLayout:
+        MDLabel:
+            text: "ﻡﺎﻗﺭﻻﺍ ﻦﻴﺑ ﺔﻠﺻﺎﻓ ﺔﺑﺎﺘﻛ ﻊﻣ ﻢﻴﻘﻟﺍ ﻝﺎﺧﺩﺈﺑ ﻢﻗ"
+            font_name: "Amiri"
+            font_size: "26sp"
+            pos_hint: {"center_x": 0.5, "center_y": 0.95}
+            halign: "center"
+
+        MDTextField:
+            id: x_values
+            hint_text: "  X  "
+            pos_hint: {"center_x": 0.5, "center_y": 0.8}
+            size_hint_x: 0.8
+
+        MDTextField:
+            id: y_values
+            hint_text: "  Y  "
+            pos_hint: {"center_x": 0.5, "center_y": 0.7}
+            size_hint_x: 0.8
+
+        MDTextField:
+            id: x_target
+            hint_text: "  x "
+            font_name: "Amiri"
+            pos_hint: {"center_x": 0.5, "center_y": 0.6}
+            size_hint_x: 0.4
+
+        MDBoxLayout:
+            orientation: 'horizontal'
+            spacing: 10
+            size_hint: 0.9, None
+            height: self.minimum_height
+            pos_hint: {"center_x": 0.5, "center_y": 0.48}
+
+            MDRaisedButton:
+                text: "ﻲﻄﺧ"
+                font_name: "Amiri"
+                on_release: app.interpolate('linear')
+            MDRaisedButton:
+                text: "ﻲﻌﻴﺑﺮﺗ"
+                font_name: "Amiri"
+                on_release: app.interpolate('quadratic')
+            MDRaisedButton:
+                text: "ﻦﺗﻮﻴﻧ"
+                font_name: "Amiri"
+                on_release: app.interpolate('newton')
+            MDRaisedButton:
+                text: "ﺞﻧﺍﺮﺟﻻ"
+                font_name: "Amiri"
+                on_release: app.interpolate('lagrange')
+
+        MDTextField:
+            id: result_field
+            hint_text: " x,y "
+            readonly: True
+            pos_hint: {"center_x": 0.5, "center_y": 0.35}
+            size_hint_x: 0.8
+"""
+
+class WelcomeScreen(MDScreen): pass
+class MainScreen(MDScreen): pass
+class InterpolationScreen(MDScreen): pass
+
+class FikraApp(MDApp):
+    def build(self):
+        self.theme_cls.primary_palette = "BlueGray"
+        Clock.schedule_once(self.goto_main, 12)
+        return Builder.load_string(KV)
+
+    def goto_main(self, dt):
+        self.root.current = "main"
+
+    def interpolate(self, method):
+        screen = self.root.get_screen('interpolation')
+        try:
+            x_vals = list(map(float, screen.ids.x_values.text.split(',')))
+            y_vals = list(map(float, screen.ids.y_values.text.split(',')))
+            x_target = float(screen.ids.x_target.text)
+
+            if method == 'linear':
+                result, explanation = linear_interpolation(x_vals, y_vals, x_target)
+            elif method == 'quadratic':
+                result, explanation = quadratic_interpolation(x_vals, y_vals, x_target)
+            elif method == 'newton':
+                result, explanation = newton_interpolation(x_vals, y_vals, x_target)
+            elif method == 'lagrange':
+                result, explanation = lagrange_interpolation(x_vals, y_vals, x_target)
+            else:
+                result, explanation = None, "طريقة غير معروفة"
+        except Exception as e:
+            result, explanation = None, f"خطأ في الإدخال: {e}"
+        self.show_result_dialog(result)
+
+
+    def show_result_dialog(self, result):
+        from kivy.clock import Clock
+        from kivy.uix.boxlayout import BoxLayout
+        from kivy.uix.label import Label
+        def _show(*args):
+            content = BoxLayout(orientation="vertical", padding=2, spacing=15)
+            top_bar = BoxLayout(orientation="horizontal", size_hint_y=None, height="40dp")
+            top_bar.add_widget(Label(
+                text="ﺔـــــــــــــــــﺠﻴﺘﻨﻟﺍ",
+                font_name="Amiri",
+                halign="left",
+                valign="middle",
+                color=(0, 0, 0, 1),
+                font_size="22sp"
+            ))
+            top_bar.add_widget(Label())  # Spacer
+            content.add_widget(top_bar)
+            content.add_widget(Label(
+                text=f"y = {result:.4f}",
+                font_name="Amiri",
+                halign="center",
+                color=(0, 0, 0, 1),
+                font_size="20sp"
+            ))
+            self.dialog = MDDialog(
+                type="custom",
+                content_cls=content,
+                buttons=[
+                    MDFlatButton(text="ًﺎﻨﺴﺣ", font_name="Amiri", on_release=lambda x: self.dialog.dismiss())
+                ],
+                radius=[20, 20, 20, 20]
+            )
+            self.dialog.open()
+        Clock.schedule_once(_show, 0.1)
+
+
+FikraApp().run()
